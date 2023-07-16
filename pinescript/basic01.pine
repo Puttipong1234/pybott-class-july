@@ -5,6 +5,10 @@
 indicator("EMA12 EMA26 STOCHRSI MACD SUPERTREND",overlay = true)
 import TradingView/ta/5
 
+USE_EMA = input.bool(defval = true,title = "Using Ema ?" , group = "Signal Validate")
+USE_STOCHRSI = input.bool(defval = true,title = "Using StoRsi ?" , group = "Signal Validate")
+USE_MACD = input.bool(defval = true,title = "Using Macd ?" , group = "Signal Validate")
+
 ema_fast_length = input.int(defval = 12,title = "EMA FAST",group = "EMA")
 ema_slow_length = input.int(defval = 26,title = "EMA SLOW",group = "EMA")
 
@@ -14,7 +18,12 @@ ema_slow = ta.ema(close,ema_slow_length)
 plot(ema_fast,color = color.green)
 plot(ema_slow,color = color.red)
 
-[k,d] = ta.stochRsi(14,8,8,8,close)
+lengthRSI = input.int(defval = 14,title = "Length RSI",group = "STOCHRSI")
+Period_k = input.int(defval = 8,title = "Period K",group = "STOCHRSI")
+Smmoth_k = input.int(defval = 8,title = "smooth K",group = "STOCHRSI")
+Period_d = input.int(defval = 8,title = "Period D",group = "STOCHRSI")
+
+[k,d] = ta.stochRsi(lengthRSI,Period_k,Smmoth_k,Period_d,close)
 
 plotchar(k,title = "K")
 plotchar(d,title = "D")
@@ -29,13 +38,20 @@ else if (k<50)
 
 bgcolor(color = over_zone)
 
-[macd,sig,histo] = ta.macd(close,12,26,9)
+Fast_len = input.int(defval = 12,title = "MACD FAST LENGTH",group = "MACD")
+Slow_len = input.int(defval = 26,title = "MACD SLOW LENGTH",group = "MACD")
+Sig_len = input.int(defval = 9,title = "SIGNAL LENGTH",group = "MACD")
+
+[macd,sig,histo] = ta.macd(close,Fast_len,Slow_len,Sig_len)
 
 plotchar(macd,title = "MACD LINE")
 plotchar(sig,title = "SIGNAL LINE")
 plotchar(histo,title = "HISTOGRAM")
 
-[trend,direction] = ta.supertrend(3,10)
+factor = input.int(defval = 3,title = "FACTOR",group = "SUPERTREND")
+atrPeriod = input.int(defval = 10,title = "ATR PERIOD",group = "SUPERTREND")
+
+[trend,direction] = ta.supertrend(factor,atrPeriod)
 
 plot(series = trend, color = direction == -1 ? color.green : direction == 1 ? color.red : na)
 
@@ -47,7 +63,7 @@ MACD_BUY = macd > sig ? 1 : 0
 
 SUPERTREND_BUY = ta.crossover(close,trend)
 
-SUMMARY_BUY_SIGNAL = (EMA_BUY == 1) and (STO_BUY == 1) and (MACD_BUY == 1) and SUPERTREND_BUY ? 1 : 0
+SUMMARY_BUY_SIGNAL = ((EMA_BUY == 1)) and ((STO_BUY == 1)) and ((MACD_BUY == 1)) and SUPERTREND_BUY ? 1 : 0
 
 plotchar(SUMMARY_BUY_SIGNAL,title = "SUMMARY_BUY_SIGNAL")
 
@@ -60,7 +76,7 @@ MACD_SELL = macd < sig ? 1 : 0
 
 SUPERTREND_SELL = ta.crossunder(close,trend)
 
-SUMMARY_SELL_SIGNAL = (EMA_SELL == 1) and (STO_SELL == 1) and (MACD_SELL == 1) and SUPERTREND_SELL ? 1 : 0
+SUMMARY_SELL_SIGNAL = ((EMA_SELL == 1)) and ((STO_SELL == 1)) and ((MACD_SELL == 1)) and SUPERTREND_SELL ? 1 : 0
 
 plotchar(SUMMARY_SELL_SIGNAL,title = "SUMMARY_SELL_SIGNAL")
 
