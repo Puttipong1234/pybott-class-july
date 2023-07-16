@@ -1,0 +1,68 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © PuttipongAutomateTrader
+
+//@version=5
+indicator("EMA12 EMA26 STOCHRSI MACD SUPERTREND",overlay = true)
+import TradingView/ta/5
+
+ema_fast_length = input.int(defval = 12,title = "EMA FAST",group = "EMA")
+ema_slow_length = input.int(defval = 26,title = "EMA SLOW",group = "EMA")
+
+ema_fast = ta.ema(close,ema_fast_length)
+ema_slow = ta.ema(close,ema_slow_length)
+
+plot(ema_fast,color = color.green)
+plot(ema_slow,color = color.red)
+
+[k,d] = ta.stochRsi(14,8,8,8,close)
+
+plotchar(k,title = "K")
+plotchar(d,title = "D")
+
+over_zone = color.rgb(120, 123, 134, 100)
+
+if(k>50)
+    over_zone := color.rgb(76, 175, 79, 81)
+
+else if (k<50)
+    over_zone := color.rgb(255, 82, 82, 81)
+
+bgcolor(color = over_zone)
+
+[macd,sig,histo] = ta.macd(close,12,26,9)
+
+plotchar(macd,title = "MACD LINE")
+plotchar(sig,title = "SIGNAL LINE")
+plotchar(histo,title = "HISTOGRAM")
+
+[trend,direction] = ta.supertrend(3,10)
+
+plot(series = trend, color = direction == -1 ? color.green : direction == 1 ? color.red : na)
+
+// buy at ema12 > ema26 , rsi > 50 , supertrend is uptrend
+
+EMA_BUY = ema_fast > ema_slow ? 1 : 0
+STO_BUY = k > 50 ? 1 : 0
+MACD_BUY = macd > sig ? 1 : 0
+
+SUPERTREND_BUY = ta.crossover(close,trend)
+
+SUMMARY_BUY_SIGNAL = (EMA_BUY == 1) and (STO_BUY == 1) and (MACD_BUY == 1) and SUPERTREND_BUY ? 1 : 0
+
+plotchar(SUMMARY_BUY_SIGNAL,title = "SUMMARY_BUY_SIGNAL")
+
+if(SUMMARY_BUY_SIGNAL == 1)
+    label.new(bar_index,close,text = "BUY",yloc = yloc.belowbar,color = color.green,style = label.style_triangleup,textcolor = color.rgb(138, 253, 142))
+
+EMA_SELL = ema_fast < ema_slow ? 1 : 0
+STO_SELL = k < 50 ? 1 : 0
+MACD_SELL = macd < sig ? 1 : 0
+
+SUPERTREND_SELL = ta.crossunder(close,trend)
+
+SUMMARY_SELL_SIGNAL = (EMA_SELL == 1) and (STO_SELL == 1) and (MACD_SELL == 1) and SUPERTREND_SELL ? 1 : 0
+
+plotchar(SUMMARY_SELL_SIGNAL,title = "SUMMARY_SELL_SIGNAL")
+
+if(SUMMARY_SELL_SIGNAL == 1)
+    label.new(bar_index,close,text = "SELL",yloc = yloc.abovebar,color = color.rgb(255, 79, 79),style = label.style_triangledown,textcolor = color.rgb(255, 169, 169))
