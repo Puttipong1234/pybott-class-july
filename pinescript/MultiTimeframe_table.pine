@@ -1,0 +1,164 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © PuttipongAutomateTrader
+
+//@version=5
+indicator("EMA12 EMA26 STOCHRSI MACD SUPERTREND",overlay = true)
+import TradingView/ta/5
+
+USE_EMA = input.bool(defval = true,title = "Using Ema ?" , group = "Signal Validate")
+USE_STOCHRSI = input.bool(defval = true,title = "Using StoRsi ?" , group = "Signal Validate")
+USE_MACD = input.bool(defval = true,title = "Using Macd ?" , group = "Signal Validate")
+USE_SR = input.bool(defval = true,title = "Using Support Resistance ?" , group = "Signal Validate")
+
+ema_fast_length = input.int(defval = 12,title = "EMA FAST",group = "EMA")
+ema_slow_length = input.int(defval = 26,title = "EMA SLOW",group = "EMA")
+
+ema_fast = ta.ema(close,ema_fast_length)
+ema_slow = ta.ema(close,ema_slow_length)
+
+plot(ema_fast,color = color.green)
+plot(ema_slow,color = color.red)
+
+lengthRSI = input.int(defval = 14,title = "Length RSI",group = "STOCHRSI")
+Period_k = input.int(defval = 8,title = "Period K",group = "STOCHRSI")
+Smmoth_k = input.int(defval = 8,title = "smooth K",group = "STOCHRSI")
+Period_d = input.int(defval = 8,title = "Period D",group = "STOCHRSI")
+
+[k,d] = ta.stochRsi(lengthRSI,Period_k,Smmoth_k,Period_d,close)
+
+plotchar(k,title = "K")
+plotchar(d,title = "D")
+
+over_zone = color.rgb(120, 123, 134, 100)
+
+if(k>50)
+    over_zone := color.rgb(76, 175, 79, 81)
+
+else if (k<50)
+    over_zone := color.rgb(255, 82, 82, 81)
+
+bgcolor(color = over_zone)
+
+Fast_len = input.int(defval = 12,title = "MACD FAST LENGTH",group = "MACD")
+Slow_len = input.int(defval = 26,title = "MACD SLOW LENGTH",group = "MACD")
+Sig_len = input.int(defval = 9,title = "SIGNAL LENGTH",group = "MACD")
+
+[macd,sig,histo] = ta.macd(close,Fast_len,Slow_len,Sig_len)
+
+plotchar(macd,title = "MACD LINE")
+plotchar(sig,title = "SIGNAL LINE")
+plotchar(histo,title = "HISTOGRAM")
+
+factor = input.int(defval = 3,title = "FACTOR",group = "SUPERTREND")
+atrPeriod = input.int(defval = 10,title = "ATR PERIOD",group = "SUPERTREND")
+
+[trend,direction] = ta.supertrend(factor,atrPeriod)
+
+plot(series = trend, color = direction == -1 ? color.green : direction == 1 ? color.red : na)
+
+//Support Resistance Lux algo credit
+leftBars = input(15, title='Left Bars ',group = "Support Resistance")
+rightBars = input(15, title='Right Bars',group = "Support Resistance")
+volumeThresh = input(20, title='Volume Threshold',group = "Support Resistance")
+SR_ACTION_ZONE = input.int(50,maxval = 50,title = "ZONE%",group = "Support Resistance")
+//
+highUsePivot = fixnan(ta.pivothigh(leftBars, rightBars)[1])
+lowUsePivot = fixnan(ta.pivotlow(leftBars, rightBars)[1])
+r1 = plot(highUsePivot, color=ta.change(highUsePivot) ? na : #FF0000, linewidth=3, offset=-(rightBars + 1), title='Resistance')
+s1 = plot(lowUsePivot, color=ta.change(lowUsePivot) ? na : #233dee, linewidth=3, offset=-(rightBars + 1), title='Support')
+
+//Volume %
+short = ta.ema(volume, 5)
+long = ta.ema(volume, 10)
+osc = 100 * (short - long) / long
+
+
+
+// buy at ema12 > ema26 , rsi > 50 , supertrend is uptrend
+
+EMA_BUY = ema_fast > ema_slow ? 1 : 0
+STO_BUY = k > 50 ? 1 : 0
+MACD_BUY = macd > sig ? 1 : 0
+SR_BUY_ZONE = ((close - lowUsePivot )*100/(highUsePivot - lowUsePivot)) < SR_ACTION_ZONE ? 1 : 0
+
+
+SUPERTREND_BUY = ta.crossover(close,trend)
+
+EMA_BUY := USE_EMA ? EMA_BUY : 1
+STO_BUY := USE_STOCHRSI ? STO_BUY : 1
+MACD_BUY := USE_MACD ? MACD_BUY : 1
+SR_BUY_ZONE := USE_SR ? SR_BUY_ZONE : 1
+
+SUMMARY_BUY_SIGNAL = ((EMA_BUY == 1)) and ((STO_BUY == 1)) and ((MACD_BUY == 1)) and SUPERTREND_BUY ? 1 : 0
+
+plotchar(SUMMARY_BUY_SIGNAL,title = "SUMMARY_BUY_SIGNAL")
+
+if(SUMMARY_BUY_SIGNAL == 1)
+    label.new(bar_index,close,text = "BUY",yloc = yloc.belowbar,color = color.green,style = label.style_triangleup,textcolor = color.rgb(138, 253, 142))
+
+EMA_SELL = ema_fast < ema_slow ? 1 : 0
+STO_SELL = k < 50 ? 1 : 0
+MACD_SELL = macd < sig ? 1 : 0
+SR_SELL_ZONE = ((highUsePivot - close )*100/(highUsePivot - lowUsePivot)) < SR_ACTION_ZONE ? 1 : 0
+
+SUPERTREND_SELL = ta.crossunder(close,trend)
+
+EMA_SELL := USE_EMA ? EMA_SELL : 1
+STO_SELL := USE_STOCHRSI ? STO_SELL : 1
+MACD_SELL := USE_MACD ? MACD_SELL : 1
+SR_SELL_ZONE := USE_SR ? SR_SELL_ZONE : 1
+
+SUMMARY_SELL_SIGNAL = ((EMA_SELL == 1)) and ((STO_SELL == 1)) and ((MACD_SELL == 1)) and SUPERTREND_SELL ? 1 : 0
+
+plotchar(SUMMARY_SELL_SIGNAL,title = "SUMMARY_SELL_SIGNAL")
+
+if(SUMMARY_SELL_SIGNAL == 1)
+    label.new(bar_index,close,text = "SELL",yloc = yloc.abovebar,color = color.rgb(255, 79, 79),style = label.style_triangledown,textcolor = color.rgb(255, 169, 169))
+
+
+var my_table = table.new(position = position.bottom_right,columns = 6,rows = 3,border_width = 2)
+
+table.cell(my_table,row=0,column=0,text="Timeframe",text_color=color.rgb(255, 255, 255),bgcolor = color.rgb(120, 123, 134, 60))
+table.cell(my_table,row=0,column=1,text="EMA",text_color=color.rgb(255, 255, 255),bgcolor = color.rgb(120, 123, 134, 60))
+table.cell(my_table,row=0,column=2,text="STOCHRSI",text_color=color.rgb(255, 255, 255),bgcolor = color.rgb(120, 123, 134, 60))
+table.cell(my_table,row=0,column=3,text="MACD",text_color=color.rgb(255, 255, 255),bgcolor = color.rgb(120, 123, 134, 60))
+table.cell(my_table,row=0,column=4,text="TREND",text_color=color.rgb(255, 255, 255),bgcolor = color.rgb(120, 123, 134, 60))
+table.cell(my_table,row=0,column=5,text="S/R",text_color=color.rgb(255, 255, 255),bgcolor = color.rgb(120, 123, 134, 60))
+
+table.cell(my_table,row = 1,column = 0,text = str.tostring(timeframe.period),bgcolor = color.rgb(120, 123, 134, 60),text_color = color.white)
+
+EMA_TREND = ema_fast > ema_slow
+table.cell(my_table,row = 1,column = 1,text = EMA_TREND ? "Up" : "Down" ,bgcolor = EMA_TREND ? color.lime : color.rgb(255, 74, 74),text_color = color.white)
+
+STOCHRSI_TREND = k > 50
+table.cell(my_table,row = 1,column = 2,text = str.tostring(int(k)) ,bgcolor = STOCHRSI_TREND ? color.lime : color.rgb(255, 74, 74),text_color = color.white)
+
+MACD_TREND = macd > sig
+table.cell(my_table,row = 1,column = 3,text = MACD_TREND ? "Up" : "Down" ,bgcolor = MACD_TREND ? color.lime : color.rgb(255, 74, 74),text_color = color.white)
+
+SUPERTREND = direction == -1// 1 , -1
+table.cell(my_table,row = 1,column = 4,text = SUPERTREND ? "Up" : "Down" ,bgcolor = SUPERTREND ? color.lime : color.rgb(255, 74, 74),text_color = color.white)
+
+perc_support = (close - lowUsePivot )*100/(highUsePivot - lowUsePivot)
+perc_support := perc_support < 0 ? na : perc_support
+perc_resistance = (highUsePivot - close )*100/(highUsePivot - lowUsePivot)
+perc_resistance := perc_resistance < 0 ? na : perc_resistance
+
+SUPPORT_ZONE = close > lowUsePivot ? (perc_support) < SR_ACTION_ZONE : na
+RESISTANCE_ZONE = close < highUsePivot ? (perc_resistance) < SR_ACTION_ZONE : na
+
+plotchar( perc_resistance ,title="sr check")
+
+if(SUPPORT_ZONE)
+    table.cell(my_table,row = 1,column = 5,text = str.tostring(int(perc_support)) ,bgcolor =color.lime,text_color = color.white)
+
+else if(RESISTANCE_ZONE)
+    table.cell(my_table,row = 1,column = 5,text = str.tostring(int(perc_support)) ,bgcolor =  color.rgb(255, 34, 34),text_color = color.white)
+
+// Multi timeframe
+ema_fast_higher = request.security(syminfo.ticker,"240",ta.ema(close,ema_fast_length))
+ema_slow_lower = request.security(syminfo.ticker,"240",ta.ema(close,ema_slow_length))
+
+EMA_TREND_HIGHER = ema_fast_higher > ema_slow_lower
+table.cell(my_table,row = 2,column = 1,text = EMA_TREND ? "Up" : "Down" ,bgcolor = EMA_TREND_HIGHER ? color.lime : color.rgb(255, 74, 74),text_color = color.white)
+table.cell(my_table,row = 2,column = 0,text = "4H" ,bgcolor = color.rgb(120, 123, 134, 60),text_color = color.white)
